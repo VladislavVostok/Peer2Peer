@@ -13,7 +13,8 @@ namespace FileClient
 		{
 			var client = new FileClient(); // Создаем клиента
 
-			string server_IP = "62.113.44.183";
+			string server_IP = "127.0.0.1";
+			//string server_IP = "62.113.44.183";
 
 
 			string peers = await RequestClientListAsync(server_IP);
@@ -49,15 +50,22 @@ namespace FileClient
 			await client.ConnectAsync(IPAddress.Parse(serverIp), Port); // Подключаемся к серверу
 			using var stream = client.GetStream(); // Получаем поток
 
-			using var writer = new BinaryWriter(stream, Encoding.UTF8);
+
+			using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
 
 			FileInfo fileInfo = new FileInfo(filePath);
 			string fileHash = await ComputeFileHash(filePath); // Вычисляем хеш файла для проверки целостности
 			
-			writer.Write(targetClient); // Указываем, какому клиенту предназначен файл
-			writer.Write(fileInfo.Name); // Отправляем имя файла
-			writer.Write(fileInfo.Length); // Отправляем размер файла
-			writer.Write(fileHash); // Отправляем хеш файла
+			await writer.WriteLineAsync(targetClient); // Указываем, какому клиенту предназначен файл
+			await writer.WriteLineAsync(fileInfo.Name); // Отправляем имя файла
+			await writer.WriteLineAsync(fileInfo.Length.ToString()); // Отправляем размер файла
+			await writer.WriteLineAsync(fileHash); // Отправляем хеш файла
+
+			using var fileStream = File.OpenRead(filePath); // Открываем файл для чтения
+			await fileStream.CopyToAsync(stream); // Передаем файл через поток
+
+			Console.WriteLine($"Sent file: {filePath} ({fileInfo.Length} bytes) to {targetClient} via server {serverIp}");
+
 		}
 
 		// Вычисление SHA-256 хеша файла
